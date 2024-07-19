@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+from pypdf import PdfReader, PdfWriter, PageObject
+from pathlib import Path
+import sys
+
+
+def trim_pdf(path: Path):
+    reader = PdfReader(path)
+    last_page = None
+    new_pages = []
+    for page in reversed(reader.pages):
+        if not same_page(page, last_page):
+            new_pages.append(page)
+        last_page = page
+    writer = PdfWriter()
+    for page in reversed(new_pages):
+        writer.add_page(page)
+    output_path = path.with_name(f"{path.stem}-4x{path.suffix}")
+    writer.write(output_path)
+    print(f"Combined PDF saved as: {output_path}")
+
+
+def same_page(prev_page: PageObject, succ_page: PageObject) -> bool:
+    if succ_page is None:
+        return False
+
+    def footer(page):
+        return page.extract_text().splitlines()[-1]
+
+    def text(page: PageObject):
+        return '\n'.join(page.extract_text().splitlines()[:-1])
+
+    print(text(prev_page))
+    print("\n")
+    print(text(succ_page))
+    print("\n=========\n")
+    return footer(prev_page) == footer(succ_page) and text(prev_page) in text(succ_page)
+
+
+if __name__ == '__main__':
+    where = Path(sys.argv[1])
+    if where.is_dir():
+        for element in where.iterdir():
+            trim_pdf(element)
+    else:
+        trim_pdf(where)

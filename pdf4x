@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+from pypdf import PdfReader, PdfWriter, PageObject
+from pathlib import Path
+import sys
+
+
+def create_blank_combined_page(original_page: PageObject) -> PageObject:
+    """Create a blank page twice the size of the original."""
+    return PageObject.create_blank_page(
+        None,
+        original_page.mediabox.width * 2,
+        original_page.mediabox.height * 2
+    )
+
+
+def calculate_subpage_position(subpage_index: int, mediabox) -> tuple:
+    """Calculate the position of a subpage within the combined page."""
+    x_position = (subpage_index % 2) * mediabox.width
+    y_position = (1 - subpage_index // 2) * mediabox.height
+    return x_position, y_position
+
+
+def merge_subpages(combined_page: PageObject, pdf_reader: PdfReader,
+                   start_index: int) -> PageObject:
+    """Merge up to four subpages onto the combined page."""
+    for subpage_index in range(4):
+        current_page_index = start_index + subpage_index
+        if current_page_index < len(pdf_reader.pages):
+            current_page = pdf_reader.pages[current_page_index]
+            x_position, y_position = calculate_subpage_position(
+                subpage_index, current_page.mediabox)
+            combined_page.merge_translated_page(current_page, x_position, y_position)
+    return combined_page
+
+
+def combine_pdf_pages(input_path: Path):
+    """Combine every four pages of the input PDF into one page in a new PDF."""
+    pdf_reader = PdfReader(input_path)
+    pdf_writer = PdfWriter()
+    for start_page_index in range(0, len(pdf_reader.pages), 4):
+        original_page = pdf_reader.pages[start_page_index]
+        combined_page = create_blank_combined_page(original_page)
+        merged_page = merge_subpages(combined_page, pdf_reader, start_page_index)
+        pdf_writer.add_page(merged_page)
+    output_path = input_path.with_name(f"{input_path.stem}-4x{input_path.suffix}")
+    pdf_writer.write(output_path)
+    print(f"Combined PDF saved as: {output_path}")
+
+
+def process_pdf_files(input_path: Path):
+    """Process a single PDF file or all PDF files in a directory."""
+    if input_path.is_dir():
+        for pdf_file in input_path.glob('*.pdf'):
+            combine_pdf_pages(pdf_file)
+    else:
+        combine_pdf_pages(input_path)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print("pass single file or directory")
+        sys.exit(1)
+    process_pdf_files(Path(sys.argv[1]))
