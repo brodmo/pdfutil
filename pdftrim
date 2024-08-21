@@ -15,7 +15,7 @@ def trim_pdf(path: Path):
     writer = PdfWriter()
     for page in reversed(new_pages):
         writer.add_page(page)
-    output_path = path.with_name(f"{path.stem}-4x{path.suffix}")
+    output_path = path.with_name(f"{path.stem}-trim{path.suffix}")
     writer.write(output_path)
     print(f"Combined PDF saved as: {output_path}")
 
@@ -28,12 +28,8 @@ def same_page(prev_page: PageObject, succ_page: PageObject) -> bool:
         return page.extract_text().splitlines()[-1]
 
     def text(page: PageObject):
-        return '\n'.join(page.extract_text().splitlines()[:-1])
+        return ''.join(page.extract_text().splitlines()[:-1]).replace(r'\s*', '')
 
-    print(text(prev_page))
-    print("\n")
-    print(text(succ_page))
-    print("\n=========\n")
     return footer(prev_page) == footer(succ_page) and text(prev_page) in text(succ_page)
 
 
